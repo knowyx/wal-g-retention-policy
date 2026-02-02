@@ -63,7 +63,7 @@ func printHelp(data []retentionPart, paths map[string]string) {
 	fmt.Printf("To run program use:\n%s.go --help (to open this menu) --walg-path (set path to your wal-g) "+
 		"(default: 'wal-g') --config-path (set path to your file with retention settings) "+
 		"(default: '/walg_policy.json') --retention-capacity=1 "+
-		"(or similiar from json, if you need to setup specific value)", splitedArgs[len(splitedArgs)-1])
+		"(or similar from json, if you need to setup specific value)", splitedArgs[len(splitedArgs)-1])
 }
 
 func getPaths() map[string]string {
@@ -123,11 +123,11 @@ func updateDataWithArguments(data []retentionPart) []retentionPart {
 
 func main() {
 	//setup log file
-	logFile, err := os.Create("wal-g-policy.log")
+	_, err := os.Create("wal-g-policy.log")
 	if err != nil {
 		log.Fatalf("Failed to create log file: %s", err)
 	}
-	logFile, err = os.OpenFile("wal-g-policy.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	logFile, err := os.OpenFile("wal-g-policy.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("Failed to open log file: %s", err)
 	}
@@ -163,7 +163,7 @@ func main() {
 				interval = retentionData[j].Value
 			}
 		}
-		for true {
+		for {
 			go retentionPolicy(retentionData, paths, cheked)
 			time.Sleep(time.Duration(interval) * time.Second) //TIME IN SECONDS, NOT IN HOURS
 		}
