@@ -50,7 +50,6 @@ func checker(data []retentionPart, paths map[string]string) map[string]bool {
 		output["hasWindow"] = false
 	}
 	return output
-
 }
 
 func printHelp(data []retentionPart, paths map[string]string) {
