@@ -4,6 +4,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -18,6 +19,12 @@ type retentionPart struct {
 	Name        string
 	Value       int
 	Description string
+}
+
+type retentionSettings struct {
+	RetentionCapacity int
+	RetentionWindow   int
+	CheckInterval     int
 }
 
 // main func to delete backups
@@ -87,6 +94,27 @@ func retentionPolicy(data []retentionPart, paths map[string]string, checked map[
 
 }
 
+func arguments_getting() map[string]string {
+	output := make(map[string]string)
+	walgPath := flag.String("walg-path", "wal-g", "a name to your wal-g executable or symlink")
+	cfgPath := flag.String("config-path", "walg_policy.json", "a path to your config file")
+	retCapacity := flag.Int("RetentionCapacity", -1, "amount of copies stored at the same time. "+
+		"Will be used instead of value in file")
+	retWindow := flag.Int("RetentionWindow", -1, "time (in days) to store a backup. "+
+		"Will be used instead of value in file")
+	checkInterval := flag.Int("CheckInterval", -1, "delay (in hours) between checking. "+
+		"Will be used instead of value in file")
+	helpMode := flag.Bool("help", false, "get help with using a program")
+	flag.Parse()
+	output["walg-path"] = *walgPath
+	output["cfg-path"] = *cfgPath
+	output["RetentionCapacity"] = strconv.Itoa(*retCapacity)
+	output["RetentionWindow"] = strconv.Itoa(*retWindow)
+	output["CheckInterval"] = strconv.Itoa(*checkInterval)
+	output["help"] = strconv.FormatBool(*helpMode)
+	return output
+}
+
 // checking of data corretion in file and arguments
 func checker(data []retentionPart, paths map[string]string) map[string]bool {
 	var hasInterval, hasCapacity, hasWindow bool
@@ -145,43 +173,78 @@ func printHelp(data []retentionPart, paths map[string]string) {
 }
 
 // getting path from args or set standart
-func getPaths() map[string]string {
-	output := make(map[string]string)
-	for i := 1; i < len(os.Args); i++ {
-		if strings.Split(os.Args[i], "=")[0] == "--help" {
-			output["helpmode"] = "help"
-		}
-		if strings.Split(os.Args[i], "=")[0] == "--walg-path" {
-			output["wal-g"] = strings.Split(os.Args[i], "=")[1]
-		} else {
-			if strings.Split(os.Args[i], "=")[0] == "--config-path" {
-				output["config"] = strings.Split(os.Args[i], "=")[1]
-			}
-		}
-	}
-	_, existWalg := output["wal-g"]
-	_, existConfig := output["config-path"]
-	if !existWalg {
-		output["wal-g"] = "wal-g"
-	}
-	if !existConfig {
-		output["config-path"] = "./walg_policy.json"
-	}
-	return output
-}
+// func getPaths() map[string]string {
+// 	output := make(map[string]string)
+// 	for i := 1; i < len(os.Args); i++ {
+// 		if strings.Split(os.Args[i], "=")[0] == "--help" {
+// 			output["helpmode"] = "help"
+// 		}
+// 		if strings.Split(os.Args[i], "=")[0] == "--walg-path" {
+// 			output["wal-g"] = strings.Split(os.Args[i], "=")[1]
+// 		} else {
+// 			if strings.Split(os.Args[i], "=")[0] == "--config-path" {
+// 				output["config"] = strings.Split(os.Args[i], "=")[1]
+// 			}
+// 		}
+// 	}
+// 	_, existWalg := output["wal-g"]
+// 	_, existConfig := output["config-path"]
+// 	if !existWalg {
+// 		output["wal-g"] = "wal-g"
+// 	}
+// 	if !existConfig {
+// 		output["config-path"] = "./walg_policy.json"
+// 	}
+// 	return output
+// }
 
-// reading a settings file
-func readRetentionSettings(path string) []retentionPart {
-	dataStr, err := os.ReadFile(path)
+// reading a settings file, update data with file values
+func readRetentionSettings(dataFromArgs map[string]string) map[string]string {
+	//reading file
+	fileData, err := os.ReadFile(dataFromArgs["cfg-path"])
 	if err != nil {
-		log.Fatalf("Error while opening settings file at %s. Error: %s", path, err)
+		log.Fatalf("Error while opening settings file at %s. Error: %s", dataFromArgs["cfg-path"], err)
 	}
-	var dataFormated []retentionPart
-	err = json.Unmarshal(dataStr, &dataFormated)
+	//unmarshal file from json into struct retentionSettings
+	var fileDataFormated []retentionSettings
+	err = json.Unmarshal(fileData, &fileDataFormated)
 	if err != nil {
-		log.Fatalf("Failed to unmarshal data from json %s. Error: %s", path, err)
+		log.Fatalf("Failed to unmarshal data from json %s. Error: %s", dataFromArgs["cfg-path"], err)
 	}
-	return dataFormated
+	log.Printf("Unmarshaled json successfuly, data: %v", fileDataFormated)
+	//getting a values from dataFromArgs and converting it to a int
+	retCapacityFromArgs, err := strconv.Atoi(dataFromArgs["RetentionCapacity"])
+	if err != nil {
+		log.Fatalf("Failed to convert RetentionCapacity in args to int. Error: %s", err)
+	}
+	retWindowFromArgs, err := strconv.Atoi(dataFromArgs["RetentionWindow"])
+	if err != nil {
+		log.Fatalf("Failed to convert RetentionWindow in args to int. Error: %s", err)
+	}
+	checkIntervalFromArgs, err := strconv.Atoi(dataFromArgs["CheckInterval"])
+	if err != nil {
+		log.Fatalf("Failed to convert CheckInterval in args to int. Error: %s", err)
+	}
+	//check if args values contain a valid value (-1 be default), if yes, pass, if no, write value from file
+	if retCapacityFromArgs <= 0 {
+		dataFromArgs["RetentionCapacity"] = strconv.Itoa(fileDataFormated[0].RetentionCapacity)
+		log.Printf("Using RetentionCapacity value from file. Value: %s", dataFromArgs["RetentionCapacity"])
+	} else {
+		log.Printf("Using RetentionCapacity value from args. Value: %s", dataFromArgs["RetentionCapacity"])
+	}
+	if retWindowFromArgs <= 0 {
+		dataFromArgs["RetentionWindow"] = strconv.Itoa(fileDataFormated[0].RetentionWindow)
+		log.Printf("Using RetentionWindow value from file. Value: %s", dataFromArgs["RetentionWindow"])
+	} else {
+		log.Printf("Using RetentionWindow value from args. Value: %s", dataFromArgs["RetentionWindow"])
+	}
+	if checkIntervalFromArgs <= 0 {
+		dataFromArgs["CheckInterval"] = strconv.Itoa(fileDataFormated[0].CheckInterval)
+		log.Printf("Using CheckInterval value from file. Value: %s", dataFromArgs["CheckInterval"])
+	} else {
+		log.Printf("Using CheckInterval value from args. Value: %s", dataFromArgs["CheckInterval"])
+	}
+	return dataFromArgs
 }
 
 // if arguments have additional data, update the file data with it
@@ -218,32 +281,44 @@ func main() {
 		log.Fatalf("Failed to get working directory. Error %s", err)
 	}
 	log.Printf("Working directory: %s", dir)
+
 	fmt.Print("Welcome to wal-g-policy utility! It will help to to observe copyies of your db with policies\n")
-	paths := getPaths()
-	fileData := readRetentionSettings(paths["config-path"])
-	retentionData := updateDataWithArguments(fileData)
-	_, existHelp := paths["helpmode"]
-	if existHelp {
+	dataFromArgsAndFile := arguments_getting()
+	if dataFromArgsAndFile["help"] == "true" {
 		log.Print("Enter help mode")
-		printHelp(retentionData, paths)
+		// printHelp(argsData)
 	} else {
-		log.Printf("Using this values. Path to wal-g: %s, path to settings file: %s", paths["wal-g"], paths["config-path"])
-		fmt.Print("Using this polycies:\n")
-		for i := 0; i < len(retentionData); i++ {
-			log.Printf("Retention policy #%d. With name: %s and value: %d", i+1, retentionData[i].Name, retentionData[i].Value)
-			fmt.Printf("#%d. %s, value: %d\n", i+1, retentionData[i].Name, retentionData[i].Value)
-		}
-		cheked := checker(retentionData, paths)
-		var interval int
-		for j := 0; j < len(retentionData); j++ {
-			if retentionData[j].Name == "check-interval" {
-				interval = retentionData[j].Value
-			}
-		}
-		for {
-			go retentionPolicy(retentionData, paths, cheked)
-			time.Sleep(time.Duration(interval) * time.Second) //TIME IN SECONDS, NOT IN HOURS
-		}
+		asd := readRetentionSettings(dataFromArgsAndFile)
+		fmt.Print("\n")
+		fmt.Print(asd)
 	}
-	log.Print("================ End of executing here ================")
+
+	// paths := getPaths()
+	//
+	// retentionData := updateDataWithArguments(fileData)
+
+	// _, existHelp := paths["helpmode"]
+	// if existHelp {
+	// 	log.Print("Enter help mode")
+	// 	printHelp(retentionData, paths)
+	// } else {
+	// 	log.Printf("Using this values. Path to wal-g: %s, path to settings file: %s", paths["wal-g"], paths["config-path"])
+	// 	fmt.Print("Using this polycies:\n")
+	// 	for i := 0; i < len(retentionData); i++ {
+	// 		log.Printf("Retention policy #%d. With name: %s and value: %d", i+1, retentionData[i].Name, retentionData[i].Value)
+	// 		fmt.Printf("#%d. %s, value: %d\n", i+1, retentionData[i].Name, retentionData[i].Value)
+	// 	}
+	// 	cheked := checker(retentionData, paths)
+	// 	var interval int
+	// 	for j := 0; j < len(retentionData); j++ {
+	// 		if retentionData[j].Name == "check-interval" {
+	// 			interval = retentionData[j].Value
+	// 		}
+	// 	}
+	// 	for {
+	// 		go retentionPolicy(retentionData, paths, cheked)
+	// 		time.Sleep(time.Duration(interval) * time.Second) //TIME IN SECONDS, NOT IN HOURS
+	// 	}
+	// }
+	// log.Print("================ End of executing here ================")
 }
