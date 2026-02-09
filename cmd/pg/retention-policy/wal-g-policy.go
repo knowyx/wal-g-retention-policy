@@ -1,25 +1,93 @@
 package main
 
+// importing depencies
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
 )
 
+// creating a stuct to unmarshal data from file
 type retentionPart struct {
 	Name        string
 	Value       int
 	Description string
 }
 
+// main func to delete backups
 func retentionPolicy(data []retentionPart, paths map[string]string, checked map[string]bool) {
-	fmt.Printf("time is: %s, %v, %v, %v", time.Now(), data, paths, checked)
+	// fmt.Printf("time is: %s, %v, %v, %v", time.Now(), data, paths, checked)
+	// cmdo := "wal-g backup-list"
+	// fmt.Print(cmdo)
+	days := 0
+	capacity := 0
+	for i := 0; i < len(data); i++ {
+		if data[i].Name == "retention-capacity" {
+			capacity = data[i].Value
+		}
+		if data[i].Name == "retention-window" {
+			days = data[i].Value
+		}
+	}
+	saveAfter := time.Now().Add(-24 * time.Duration(days) * time.Hour)
+	// args := " delete retain " + strconv.Itoa(capacity) + " --after " + saveAfter.Format(time.RFC3339) + " --confirm"
+	args := []string{
+		"delete",
+		"retain", "FIND_FULL", strconv.Itoa(capacity),
+		"--after", saveAfter.Format(time.RFC3339),
+		"--confirm",
+	}
+	fmt.Printf("%s %s\n", paths["wal-g"], args)
+	cmd := exec.Command(paths["wal-g"], args...)
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	fmt.Print(out)
+	if err != nil {
+		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+		return
+	}
+
+	args = []string{
+		"delete",
+		"retain", "FIND_FULL", strconv.Itoa(capacity),
+		"--confirm",
+	}
+
+	fmt.Printf("%s %s\n", paths["wal-g"], args)
+	cmd = exec.Command(paths["wal-g"], args...)
+
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	fmt.Print(out)
+	if err != nil {
+		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+		return
+	}
+	// fmt.Print(string(out))
+	// if checked["hasCapacity"] && checked["hasWindow"] {
+	// 	cmdo = "delete retain " + strconv.Itoa(data[0].Value) +
+	// 		" --after " + strconv.Itoa() + " --confirm"
+	// }
+	// fmt.Printf("wal-g %s", cmdo)
+	// output, err := exec.Command("wal-g", cmdo).Output()
+	// if err != nil {
+	// 	log.Fatalf("There is error while executing command. Error: %s", err)
+	// }
+	// fmt.Print(string(output))
+
 }
 
+// checking of data corretion in file and arguments
 func checker(data []retentionPart, paths map[string]string) map[string]bool {
 	var hasInterval, hasCapacity, hasWindow bool
 	output := make(map[string]bool)
@@ -34,11 +102,21 @@ func checker(data []retentionPart, paths map[string]string) map[string]bool {
 			hasWindow = true
 		}
 	}
+	// without a interal user cant run program
 	if !hasInterval {
 		log.Fatalf("For using this utility you need to add a set to %s with parameters: "+
 			"\"Name\" — \"check-interval\", \"Description\" — something as you "+
 			"want and \"Value\" — time in hours to check backups", paths["config-path"])
 	}
+	// without at least 1 setting user cant run program
+	if !hasCapacity && !hasWindow {
+		log.Fatalf("For using this utility you need to add a least 1 set: retention-capacity"+
+			" or retention-window to %s with parameters: "+
+			"\"Name\" — \"retention-capacity\" or \"retention-window\", \"Description\" — something as you "+
+			"want and \"Value\" — Amount of full copies stored at same time for retention-capacity or "+
+			"amount of days to store a one copy for retention-window", paths["config-path"])
+	}
+	// without capacity or window user can run program (1 setting wil work)
 	if hasCapacity {
 		output["hasCapacity"] = true
 	} else {
@@ -52,6 +130,7 @@ func checker(data []retentionPart, paths map[string]string) map[string]bool {
 	return output
 }
 
+// function to print a help
 func printHelp(data []retentionPart, paths map[string]string) {
 	fmt.Print("This utility will check the correction of your PostgreSQL backups and keep it \"in the same view\"\n")
 	fmt.Printf("Program will use this policyes from file: %s and program arguments:\n", paths["config-path"])
@@ -65,6 +144,7 @@ func printHelp(data []retentionPart, paths map[string]string) {
 		"(or similar from json, if you need to setup specific value)", splitedArgs[len(splitedArgs)-1])
 }
 
+// getting path from args or set standart
 func getPaths() map[string]string {
 	output := make(map[string]string)
 	for i := 1; i < len(os.Args); i++ {
@@ -90,6 +170,7 @@ func getPaths() map[string]string {
 	return output
 }
 
+// reading a settings file
 func readRetentionSettings(path string) []retentionPart {
 	dataStr, err := os.ReadFile(path)
 	if err != nil {
@@ -103,6 +184,7 @@ func readRetentionSettings(path string) []retentionPart {
 	return dataFormated
 }
 
+// if arguments have additional data, update the file data with it
 func updateDataWithArguments(data []retentionPart) []retentionPart {
 	for i := 1; i < len(os.Args); i++ {
 		for j := 0; j < len(data); j++ {
@@ -122,10 +204,6 @@ func updateDataWithArguments(data []retentionPart) []retentionPart {
 
 func main() {
 	//setup log file
-	_, err := os.Create("wal-g-policy.log")
-	if err != nil {
-		log.Fatalf("Failed to create log file: %s", err)
-	}
 	logFile, err := os.OpenFile("wal-g-policy.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("Failed to open log file: %s", err)
