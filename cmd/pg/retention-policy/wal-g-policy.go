@@ -17,11 +17,11 @@ import (
 )
 
 // creating a stuct to unmarshal data from file
-type retentionPart struct {
-	Name        string
-	Value       int
-	Description string
-}
+// type retentionPart struct {
+// 	Name        string
+// 	Value       int
+// 	Description string
+// }
 
 type retentionSettings struct {
 	RetentionCapacity int
@@ -29,75 +29,182 @@ type retentionSettings struct {
 	CheckInterval     int
 }
 
-// main func to delete backups
-func retentionPolicy1(data []retentionPart, paths map[string]string, checked map[string]bool) {
-	// fmt.Printf("time is: %s, %v, %v, %v", time.Now(), data, paths, checked)
-	// cmdo := "wal-g backup-list"
-	// fmt.Print(cmdo)
-	days := 0
-	capacity := 0
-	for i := 0; i < len(data); i++ {
-		if data[i].Name == "retention-capacity" {
-			capacity = data[i].Value
-		}
-		if data[i].Name == "retention-window" {
-			days = data[i].Value
-		}
+// // main func to delete backups
+// func retentionPolicy1(data []retentionPart, paths map[string]string, checked map[string]bool) {
+// 	// fmt.Printf("time is: %s, %v, %v, %v", time.Now(), data, paths, checked)
+// 	// cmdo := "wal-g backup-list"
+// 	// fmt.Print(cmdo)
+// 	days := 0
+// 	capacity := 0
+// 	for i := 0; i < len(data); i++ {
+// 		if data[i].Name == "retention-capacity" {
+// 			capacity = data[i].Value
+// 		}
+// 		if data[i].Name == "retention-window" {
+// 			days = data[i].Value
+// 		}
+// 	}
+// 	saveAfter := time.Now().Add(-24 * time.Duration(days) * time.Hour)
+// 	// args := " delete retain " + strconv.Itoa(capacity) + " --after " + saveAfter.Format(time.RFC3339) + " --confirm"
+// 	args := []string{
+// 		"delete",
+// 		"retain", "FIND_FULL", strconv.Itoa(capacity),
+// 		"--after", saveAfter.Format(time.RFC3339),
+// 		"--confirm",
+// 	}
+// 	fmt.Printf("%s %s\n", paths["wal-g"], args)
+// 	cmd := exec.Command(paths["wal-g"], args...)
+// 	var out bytes.Buffer
+// 	var stderr bytes.Buffer
+// 	cmd.Stdout = &out
+// 	cmd.Stderr = &stderr
+// 	err := cmd.Run()
+// 	fmt.Print(out)
+// 	if err != nil {
+// 		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+// 		return
+// 	}
+
+// 	args = []string{
+// 		"delete",
+// 		"retain", "FIND_FULL", strconv.Itoa(capacity),
+// 		"--confirm",
+// 	}
+
+// 	fmt.Printf("%s %s\n", paths["wal-g"], args)
+// 	cmd = exec.Command(paths["wal-g"], args...)
+
+// 	cmd.Stdout = &out
+// 	cmd.Stderr = &stderr
+// 	err = cmd.Run()
+// 	fmt.Print(out)
+// 	if err != nil {
+// 		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+// 		return
+// 	}
+// 	// fmt.Print(string(out))
+// 	// if checked["hasCapacity"] && checked["hasWindow"] {
+// 	// 	cmdo = "delete retain " + strconv.Itoa(data[0].Value) +
+// 	// 		" --after " + strconv.Itoa() + " --confirm"
+// 	// }
+// 	// fmt.Printf("wal-g %s", cmdo)
+// 	// output, err := exec.Command("wal-g", cmdo).Output()
+// 	// if err != nil {
+// 	// 	log.Fatalf("There is error while executing command. Error: %s", err)
+// 	// }
+// 	// fmt.Print(string(output))
+
+// }
+
+func settingsStrToIntConvertor(dataFromArgsAndFile map[string]string) (int, int, int) {
+	retCapacity, err := strconv.Atoi(dataFromArgsAndFile["RetentionCapacity"])
+	if err != nil {
+		log.Fatalf("Failed to convert RetentionCapacity in args to int. Error: %s", err)
 	}
-	saveAfter := time.Now().Add(-24 * time.Duration(days) * time.Hour)
-	// args := " delete retain " + strconv.Itoa(capacity) + " --after " + saveAfter.Format(time.RFC3339) + " --confirm"
-	args := []string{
-		"delete",
-		"retain", "FIND_FULL", strconv.Itoa(capacity),
-		"--after", saveAfter.Format(time.RFC3339),
-		"--confirm",
+	retWindow, err := strconv.Atoi(dataFromArgsAndFile["RetentionWindow"])
+	if err != nil {
+		log.Fatalf("Failed to convert RetentionWindow in args to int. Error: %s", err)
 	}
-	fmt.Printf("%s %s\n", paths["wal-g"], args)
-	cmd := exec.Command(paths["wal-g"], args...)
+	checkInterval, err := strconv.Atoi(dataFromArgsAndFile["CheckInterval"])
+	if err != nil {
+		log.Fatalf("Failed to convert CheckInterval in args to int. Error: %s", err)
+	}
+	return retCapacity, retWindow, checkInterval
+
+}
+
+func getBackupCnt(data map[string]string) int {
+	// commandList := exec.Command(data["walg-path"], "backup-list")
+	// commandTail := exec.Command("tail", "-n", "+2")
+	// commandWc := exec.Command("wc", "-l")
+	// listOut, err := commandList.StdoutPipe()
+	// fmt.Print(1111)
+	// if err != nil {
+	// 	log.Fatalf("Error while getting backups list. "+
+	// 		"Error: %s", err)
+	// }
+	// if err != nil {
+	// 	log.Fatalf("Failed to start  getting backups list. "+
+	// 		"Error: %s", err)
+	// }
+	// defer listOut.Close()
+	// commandTail.Stdin = listOut
+	// tailOut, err := commandTail.StdoutPipe()
+	// if err != nil {
+	// 	log.Fatalf("Error while tailing backups list. "+
+	// 		"Error: %s", err)
+	// }
+	// defer tailOut.Close()
+	// commandWc.Stdin = tailOut
+	// out, err := commandWc.CombinedOutput()
+	// if err != nil {
+	// 	log.Fatalf("Error while getting word count of backups. "+
+	// 		"Error: %s", err)
+	// }
+	// fmt.Print(out)
+	cmd := exec.Command("/bin/sh", "-c", data["walg-path"]+" backup-list | tail -n +2 | wc -l")
 	var out bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 	err := cmd.Run()
-	fmt.Print(out)
 	if err != nil {
-		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
-		return
+		log.Fatalf("Failed to get amount of backups. "+
+			"Error #1: %s, Error #2: %s)", err, stderr.String())
 	}
+	outString := strings.ReplaceAll(out.String(), "\n", "")
+	outInt, err := strconv.Atoi(outString)
+	if err != nil {
+		log.Fatalf("Failed to convert amount of backups to the int class. Error: %s", err)
+	}
+	return outInt
+}
 
-	args = []string{
+func retentionPolicyChecker(data map[string]string, _ time.Time) {
+	startBackupsAmount := getBackupCnt(data)
+	capacity, window, _ := settingsStrToIntConvertor(data)
+	if window > 0 {
+		saveAfter := time.Now().Add(-24 * time.Duration(window) * time.Hour)
+		args := []string{
+			"delete",
+			"retain", "FIND_FULL", strconv.Itoa(capacity),
+			"--after", saveAfter.Format(time.RFC3339),
+			"--confirm",
+		}
+		cmd := exec.Command(data["walg-path"], args...)
+		var out bytes.Buffer
+		var stderr bytes.Buffer
+		cmd.Stdout = &out
+		cmd.Stderr = &stderr
+		err := cmd.Run()
+		if err != nil {
+			log.Fatalf("Error while checking retention poclicy (step 1: with window). "+
+				"Error #1: %s, Error #2: %s)", err, stderr.String())
+		}
+	}
+	args := []string{
 		"delete",
 		"retain", "FIND_FULL", strconv.Itoa(capacity),
 		"--confirm",
 	}
-
-	fmt.Printf("%s %s\n", paths["wal-g"], args)
-	cmd = exec.Command(paths["wal-g"], args...)
-
+	cmd := exec.Command(data["walg-path"], args...)
+	var out bytes.Buffer
+	var stderr bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
-	err = cmd.Run()
-	fmt.Print(out)
+	err := cmd.Run()
 	if err != nil {
-		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
-		return
+		log.Fatalf("Error while checking retention poclicy (step 2: without window). "+
+			"Error #1: %s, Error #2: %s)", err, stderr.String())
 	}
-	// fmt.Print(string(out))
-	// if checked["hasCapacity"] && checked["hasWindow"] {
-	// 	cmdo = "delete retain " + strconv.Itoa(data[0].Value) +
-	// 		" --after " + strconv.Itoa() + " --confirm"
-	// }
-	// fmt.Printf("wal-g %s", cmdo)
-	// output, err := exec.Command("wal-g", cmdo).Output()
-	// if err != nil {
-	// 	log.Fatalf("There is error while executing command. Error: %s", err)
-	// }
-	// fmt.Print(string(output))
-
-}
-
-func retentionPolicyChecker(data map[string]string) {
-
+	fmt.Printf("Check successfuly completed!\n")
+	endBackupsAmount := getBackupCnt(data)
+	if endBackupsAmount != startBackupsAmount {
+		fmt.Printf("Deleted %d backups\n", startBackupsAmount-endBackupsAmount)
+	} else {
+		fmt.Print("No backups have been deleted\n")
+	}
+	log.Printf("Check completed. Deleted %d backups", startBackupsAmount-endBackupsAmount)
 }
 
 func arguments_getting() map[string]string {
@@ -164,23 +271,6 @@ func arguments_getting() map[string]string {
 // 	return output
 // }
 
-func settingsStrToIntConvertor(dataFromArgsAndFile map[string]string) (int, int, int) {
-	retCapacity, err := strconv.Atoi(dataFromArgsAndFile["RetentionCapacity"])
-	if err != nil {
-		log.Fatalf("Failed to convert RetentionCapacity in args to int. Error: %s", err)
-	}
-	retWindow, err := strconv.Atoi(dataFromArgsAndFile["RetentionWindow"])
-	if err != nil {
-		log.Fatalf("Failed to convert RetentionWindow in args to int. Error: %s", err)
-	}
-	checkInterval, err := strconv.Atoi(dataFromArgsAndFile["CheckInterval"])
-	if err != nil {
-		log.Fatalf("Failed to convert CheckInterval in args to int. Error: %s", err)
-	}
-	return retCapacity, retWindow, checkInterval
-
-}
-
 func getWorkDir() string {
 	dir, err := os.Getwd()
 	if err != nil {
@@ -214,7 +304,9 @@ func checker(dataFromArgsAndFile map[string]string) {
 	log.Print("Check retCapacity > 0 passed!")
 	if retWindow <= 0 {
 		log.Print("Check retWindow > 0 not passed!")
-		fmt.Print("You may add a RetentionWindow setting ()") // TODO: WRITE HERE
+		fmt.Print("You may add a RetentionWindow setting (it will delete backups that created " +
+			"before date) in file (\"RetentionWindow\": int > 0) or program argumets " +
+			"(-RetentionWindow=int > 0).")
 	} else {
 		log.Print("Check retWindow > 0 passed!")
 	}
@@ -222,7 +314,6 @@ func checker(dataFromArgsAndFile map[string]string) {
 }
 
 // function to print a help
-// TODO : rewrite
 func printHelp(dataFromArgsAndFile map[string]string) {
 	fmt.Print("This utility will check the correction of your PostgreSQL backups and keep it \"in the same view\".\n")
 	dir := getWorkDir()
@@ -274,14 +365,14 @@ func readRetentionSettings(dataFromArgs map[string]string) map[string]string {
 	return dataFromArgs
 }
 
-func tickerSetup(intervalStr string) *time.Ticker {
+func tickerSetup(intervalStr string) time.Ticker {
 	interval, err := strconv.Atoi(intervalStr)
 	if err != nil {
 		log.Fatalf("Failed to convert CheckInterval to int. Error: %s", err)
 	}
-	ticker := time.NewTicker(time.Duration(time.Duration(interval) * time.Second)) // SECONDS, CHANGE TO HOURS
+	ticker := time.NewTicker(time.Duration(interval) * time.Second) // SECONDS, CHANGE TO HOURS
 	log.Printf("Ticker setup is successful")
-	return ticker
+	return *ticker
 }
 
 func main() {
@@ -310,45 +401,15 @@ func main() {
 		checker(dataFromArgsAndFile)
 		log.Printf("All is OK. Ready to run program")
 		ticker := tickerSetup(dataFromArgsAndFile["CheckInterval"])
-		for {
-			select {
-			case <-ticker.C:
-				retentionPolicyChecker(dataFromArgsAndFile)
-			case <-sigChan:
-				log.Printf("Recived shutdown signal")
-				fmt.Print("\nShutting down gracefully...\n")
-				log.Print("================ End of executing here ================")
-				return
+
+		go func() {
+			for t := range ticker.C {
+				retentionPolicyChecker(dataFromArgsAndFile, t)
 			}
-		}
+		}()
 	}
+	<-sigChan
+	log.Printf("Recived shutdown signal")
+	fmt.Print("\nShutting down gracefully...\n")
+	log.Print("================ End of executing here ================")
 }
-
-// paths := getPaths()
-//
-// retentionData := updateDataWithArguments(fileData)
-
-// _, existHelp := paths["helpmode"]
-// if existHelp {
-// 	log.Print("Enter help mode")
-// 	printHelp(retentionData, paths)
-// } else {
-// 	log.Printf("Using this values. Path to wal-g: %s, path to settings file: %s", paths["wal-g"], paths["config-path"])
-// 	fmt.Print("Using this polycies:\n")
-// 	for i := 0; i < len(retentionData); i++ {
-// 		log.Printf("Retention policy #%d. With name: %s and value: %d", i+1, retentionData[i].Name, retentionData[i].Value)
-// 		fmt.Printf("#%d. %s, value: %d\n", i+1, retentionData[i].Name, retentionData[i].Value)
-// 	}
-// 	cheked := checker(retentionData, paths)
-// 	var interval int
-// 	for j := 0; j < len(retentionData); j++ {
-// 		if retentionData[j].Name == "check-interval" {
-// 			interval = retentionData[j].Value
-// 		}
-// 	}
-// 	for {
-// 		go retentionPolicy(retentionData, paths, cheked)
-// 		time.Sleep(time.Duration(interval) * time.Second) //TIME IN SECONDS, NOT IN HOURS
-// 	}
-// }
-//

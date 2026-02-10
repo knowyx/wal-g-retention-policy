@@ -1,17 +1,5 @@
-[
-    {
-        "Name": "retention-capacity",
-        "Value": 4,
-        "Description": "Amount of full copies stored at same time. Default value: 4"
-    },
-    {
-        "Name": "retention-window",
-        "Value": 7,
-        "Description": "Amount of days to store a one copy (in days). Default value: 7"
-    },
-    {
-        "Name": "check-interval",
-        "Value": 1,
-        "Description": "Amount of time, when programm will check copies (in hours). Default value: 1"
-    }
-]
+[{
+    "CheckInterval": 1,
+    "RetentionWindow": 7,
+    "RetentionCapacity": 4
+}]
