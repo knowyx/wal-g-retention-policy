@@ -1,0 +1,5 @@
+[{
+    "CheckInterval": 1,
+    "RetentionWindow": 7,
+    "RetentionCapacity": 4
+}]
