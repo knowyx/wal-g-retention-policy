@@ -258,7 +258,7 @@ func tickerSetup(intervalStr string) time.Ticker {
 	if err != nil {
 		log.Fatalf("Failed to convert CheckInterval to int. Error: %s", err)
 	}
-	ticker := time.NewTicker(time.Duration(interval) * time.Second) // SECONDS, CHANGE TO HOURS
+	ticker := time.NewTicker(time.Duration(interval) * time.Hour)
 	log.Printf("Ticker setup is successful")
 	return *ticker
 }
