@@ -2,8 +2,8 @@
 ![Docker-tests-status](https://github.com/knowyx/wal-g-retention-policy/workflows/Docker%20tests/badge.svg)
 ![Unit-tests-status](https://github.com/knowyx/wal-g-retention-policy/workflows/Unit%20tests/badge.svg)
 
-[You can also view the oficial docs of wal-g](https://github.com/knowyx/wal-g-retention-policy/blob/master/docs/README.md)
-[This is fork of official wal-g repository](https://github.com/wal-g/wal-g)
+![You can also view the oficial docs of wal-g](https://github.com/knowyx/wal-g-retention-policy/blob/master/docs/README.md)
+![This is fork of official wal-g repository](https://github.com/wal-g/wal-g)
 
 WAL-G retention policy utility will help you kepp control on your backups.
 Key features are:
