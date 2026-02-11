@@ -5,7 +5,7 @@
 ![You can also view the oficial docs of wal-g](https://github.com/knowyx/wal-g-retention-policy/blob/master/docs/README.md)
 ![This is fork of official wal-g repository](https://github.com/wal-g/wal-g)
 
-WAL-G retention policy utility will help you kepp control on your backups.
+WAL-G retention policy utility will help you keep control on your backups.
 Key features are:
 - Removing old backups
 - Setting a cap, after that backups will remove
