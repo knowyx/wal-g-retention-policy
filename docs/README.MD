@@ -32,6 +32,12 @@ you can also add some attributes:
 - walg-path — path to your wal-g executable or symlink (by defaut: wal-g)
 - config-path — path to your json config file (by defaut: walg_policy.json)
 
+If you want to view additional information, just add
+```
+-help
+```
+to the program arguments
+
 Configuration
 -------------
 
